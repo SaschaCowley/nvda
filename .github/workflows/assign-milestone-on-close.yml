@@ -1,7 +1,7 @@
 name: Assign Milestone on Close
 
 env:
-  MILESTONE_ID: ${{ vars.MILESTONE_ID }}
+  MILESTONE_ID: 1
 
 on:
   issues:
