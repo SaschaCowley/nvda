@@ -36,11 +36,8 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const issueOrPr = context.payload.issue || context.payload.pull_request;
-            if (
-                (context.payload.issue && context.payload.issue.state_reason === "completed")
-                || (context.payload.pull_request && context.payload.pull_request.merged)
-            ) {
+            // No need to check if this is a merged PR, as pull_request_target takes care of that for us.
+            if (context.payload.issue && context.payload.issue.state_reason === "completed") {
               core.setOutput('isDone', 'true');
             } else {
               core.setOutput('isDone', 'false');
