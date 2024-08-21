@@ -21,7 +21,7 @@ jobs:
         id: payload-content
         uses: actions/github-script@v7
         with:
-          script: return json.stringify(context.payload);
+          script: return JSON.stringify(context.payload);
           result-encoding: string
       - name: Print payload content
         id: print-payload
