@@ -36,8 +36,10 @@ jobs:
             const issueOrPr = context.payload.issue || context.payload.pull_request;
             if (!issueOrPr.milestone) {
               core.setOutput('milestoneNotSet', 'true');
+              console.log("Milestone not set");
             } else {
               core.setOutput('milestoneNotSet', 'false');
+              console.log("Milestone already set.");
             }
 
       - name: Check completed or merged
@@ -49,8 +51,10 @@ jobs:
             // No need to check if this is a merged PR, as pull_request_target takes care of that for us.
             if (context.payload.issue && context.payload.issue.state_reason === "completed") {
               core.setOutput('isDone', 'true');
+              console.log("Done.");
             } else {
               core.setOutput('isDone', 'false');
+              console.log("Not done.");
             }
 
       - name: Assign default milestone
