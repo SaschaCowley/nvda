@@ -25,7 +25,7 @@ jobs:
           result-encoding: string
       - name: Print payload content
         id: print-payload
-        run: echo "${{steps.get-payload.outputs.result}}"
+        run: echo "${{steps.get-payload.outputs.result}}" >> output.txt
       - name: Check if milestone is set
         id: check-milestone
         uses: actions/github-script@v7
