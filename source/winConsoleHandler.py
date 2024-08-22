@@ -11,9 +11,7 @@ import wincon
 from colors import RGB
 import eventHandler
 from logHandler import log
-import speech
 import textInfos
-import api
 import config
 import locationHelper
 from typing import (
@@ -96,7 +94,7 @@ def disconnectConsole():
 	#Unregister any win events we are using
 	for handle in consoleWinEventHookHandles:
 		winUser.unhookWinEvent(handle)
-	consoleEventHookHandles=[]
+	consoleEventHookHandles=[]  # noqa: F841
 	consoleObject.stopMonitoring()
 	winKernel.closeHandle(consoleOutputHandle)
 	consoleOutputHandle=None
@@ -124,7 +122,7 @@ def _checkDead():
 		if isConsoleDead():
 			# We must disconnect NVDA from this console so it can close.
 			disconnectConsole()
-	except:
+	except:  # noqa: E722
 		log.exception()
 
 def getConsoleVisibleLines():
@@ -263,7 +261,7 @@ class WinConsoleTextInfo(textInfos.offsets.OffsetsTextInfo):
 				if formatConfig['reportColor']:
 					formatField["color"]=CONSOLE_COLORS_TO_RGB[c.Attributes&0x0f]
 					formatField["background-color"]=CONSOLE_COLORS_TO_RGB[(c.Attributes>>4)&0x0f]
-				if formatConfig['reportFontAttributes'] and c.Attributes&COMMON_LVB_UNDERSCORE:
+				if formatConfig['fontAttributeReporting'] and c.Attributes&COMMON_LVB_UNDERSCORE:
 					formatField['underline']=True
 				if formatField:
 					if lastText:

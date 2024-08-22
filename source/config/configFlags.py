@@ -1,5 +1,5 @@
 # A part of NonVisual Desktop Access (NVDA)
-# Copyright (C) 2022-2023 NV Access Limited, Cyrille Bougot
+# Copyright (C) 2022-2024 NV Access Limited, Cyrille Bougot
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
 
@@ -98,6 +98,25 @@ class TetherTo(DisplayStringStrEnum):
 
 
 @unique
+class BrailleMode(DisplayStringStrEnum):
+	"""Enumeration containing the possible config values for "Braille mode" option in braille settings.
+	Use BrailleMode.MEMBER.value to compare with the config;
+	use BrailleMode.MEMBER.displayString in the UI for a translatable description of this member.
+	"""
+	FOLLOW_CURSORS = "followCursors"
+	SPEECH_OUTPUT = "speechOutput"
+
+	@property
+	def _displayStringLabels(self) -> dict["BrailleMode", str]:
+		return {
+			# Translators: The label for a braille mode
+			BrailleMode.FOLLOW_CURSORS: _("follow cursors"),
+			# Translators: The label for a braille mode
+			BrailleMode.SPEECH_OUTPUT: _("display speech output")
+		}
+
+
+@unique
 class ReportLineIndentation(DisplayStringIntEnum):
 	"""Enumeration containing the possible config values to report line indent.
 	
@@ -182,4 +201,42 @@ class ReportCellBorders(DisplayStringIntEnum):
 			# Translators: This is the label for a combobox in the
 			# document formatting settings panel.
 			ReportCellBorders.COLOR_AND_STYLE: _("Both Colors and Styles"),
+		}
+
+
+class AddonsAutomaticUpdate(DisplayStringStrEnum):
+	NOTIFY = "notify"
+	# TODO: uncomment when implementing #3208
+	# UPDATE = "update"
+	DISABLED = "disabled"
+
+	@property
+	def _displayStringLabels(self):
+		return {
+			# Translators: This is a label for the automatic update behaviour for add-ons.
+			# It will notify the user when updates are available.
+			self.NOTIFY: _("Notify"),
+			# self.UPDATE: _("Update Automatically"),
+			# Translators: This is a label for the automatic update behaviour for add-ons.
+			self.DISABLED: _("Disabled"),
+		}
+
+@unique
+class OutputMode(DisplayStringIntEnum):
+	OFF = 0
+	SPEECH = 1
+	BRAILLE = 2
+	SPEECH_AND_BRAILLE = 3
+
+	@property
+	def _displayStringLabels(self):
+		return {
+			# Translators: This is a way of reporting information.
+			self.OFF: _("Off"),
+			# Translators: This is a way of reporting information.
+			self.SPEECH: _("Speech"),
+			# Translators: This is a way of reporting information.
+			self.BRAILLE: _("Braille"),
+			# Translators: This is a way of reporting information.
+			self.SPEECH_AND_BRAILLE: _("Speech and braille"),
 		}
