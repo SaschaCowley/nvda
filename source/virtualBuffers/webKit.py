@@ -3,10 +3,8 @@
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
 
-import ctypes
-import typing
 
-from . import VirtualBuffer, VirtualBufferTextInfo, VBufRemote_nodeHandle_t
+from . import VirtualBuffer, VirtualBufferTextInfo
 import controlTypes
 import NVDAObjects.IAccessible
 import winUser
@@ -15,7 +13,6 @@ import IAccessibleHandler
 import oleacc
 from logHandler import log
 import textInfos
-import NVDAHelper
 
 class WebKit_TextInfo(VirtualBufferTextInfo):
 
@@ -49,7 +46,17 @@ class WebKit(VirtualBuffer):
 		super(WebKit,self).__init__(rootNVDAObject,backendName="webKit")
 
 	def __contains__(self,obj):
-		return winUser.isDescendantWindow(self.rootNVDAObject.windowHandle, obj.windowHandle)
+		if not winUser.isDescendantWindow(self.rootNVDAObject.windowHandle, obj.windowHandle):
+			return False
+		# #15653: The list items within combo boxes should not be classed as part of the browse mode document.
+		# Otherwise arrowing to them will switch back to browse mode.
+		if obj.role == controlTypes.Role.STATICTEXT:
+			parent = obj.parent
+			if parent and parent.role == controlTypes.Role.LIST:
+				parent = parent.parent
+				if parent and parent.role == controlTypes.Role.COMBOBOX:
+					return False
+		return True
 
 	def _get_isAlive(self):
 		if self.isLoading:
@@ -110,11 +117,11 @@ class WebKit(VirtualBuffer):
 		try:
 			obj.doAction()
 			return
-		except:
+		except:  # noqa: E722
 			pass
 
 		log.debugWarning("could not programmatically activate field, trying mouse")
-		l=obj.location
+		l=obj.location  # noqa: E741
 		if not l:
 			log.debugWarning("no location for field")
 			return

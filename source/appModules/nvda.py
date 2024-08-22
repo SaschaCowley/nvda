@@ -1,5 +1,5 @@
 # A part of NonVisual Desktop Access (NVDA)
-# Copyright (C) 2008-2021 NV Access Limited, James Teh, Michael Curran, Leonard de Ruijter, Reef Turner,
+# Copyright (C) 2008-2024 NV Access Limited, James Teh, Michael Curran, Leonard de Ruijter, Reef Turner,
 # Julien Cochuyt
 # This file may be used under the terms of the GNU General Public License, version 2 or later.
 # For more details see: https://www.gnu.org/licenses/gpl-2.0.html
@@ -17,9 +17,7 @@ import gui
 from scriptHandler import script
 import speech
 import textInfos
-import braille
 import config
-from logHandler import log
 import ui
 
 if typing.TYPE_CHECKING:
@@ -27,6 +25,7 @@ if typing.TYPE_CHECKING:
 
 
 nvdaMenuIaIdentity = None
+
 
 class NvdaDialog(IAccessible):
 	"""Fix to ensure NVDA message dialogs get reported when they pop up.

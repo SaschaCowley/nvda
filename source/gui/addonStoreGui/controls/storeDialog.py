@@ -1,5 +1,5 @@
 # A part of NonVisual Desktop Access (NVDA)
-# Copyright (C) 2022-2023 NV Access Limited, Cyrille Bougot
+# Copyright (C) 2022-2024 NV Access Limited, Cyrille Bougot, łukasz Golonka
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
 
@@ -47,10 +47,11 @@ class AddonStoreDialog(SettingsDialog):
 	# point to the Add-on Store one.
 	helpId = "AddonsManager"
 
-	def __init__(self, parent: wx.Window, storeVM: AddonStoreVM):
+	def __init__(self, parent: wx.Window, storeVM: AddonStoreVM, openToTab: _StatusFilterKey | None = None):
 		self._storeVM = storeVM
 		self._storeVM.onDisplayableError.register(self.handleDisplayableError)
 		self._actionsContextMenu = _MonoActionsContextMenu(self._storeVM)
+		self.openToTab = openToTab
 		super().__init__(parent, resizeable=True, buttons={wx.CLOSE})
 		if config.conf["addonStore"]["showWarning"]:
 			displayDialogAsModal(_SafetyWarningDialog(parent))
@@ -78,17 +79,19 @@ class AddonStoreDialog(SettingsDialog):
 		for statusFilter in _statusFilters:
 			self.addonListTabs.AddPage(dynamicTabPage, statusFilter.displayString)
 		tabPageHelper.addItem(self.addonListTabs, flag=wx.EXPAND)
-		if any(self._storeVM._installedAddons[channel] for channel in self._storeVM._installedAddons):
-			# If there's any installed add-ons, use the installed add-ons page by default
-			self.addonListTabs.SetSelection(0)
-		else:
-			availableTabIndex = list(_statusFilters.keys()).index(_StatusFilterKey.AVAILABLE)
-			self.addonListTabs.SetSelection(availableTabIndex)
+		openToTab = self.openToTab
+		if openToTab is None:
+			if any(self._storeVM._installedAddons[channel] for channel in self._storeVM._installedAddons):
+				openToTab = _StatusFilterKey.INSTALLED
+			else:
+				openToTab = _StatusFilterKey.AVAILABLE
+		openToTabIndex = list(_statusFilters.keys()).index(openToTab)
+		self.addonListTabs.SetSelection(openToTabIndex)
 		self.addonListTabs.Bind(wx.EVT_NOTEBOOK_PAGE_CHANGED, self.onListTabPageChange, self.addonListTabs)
 
-		self.filterCtrlHelper = guiHelper.BoxSizerHelper(self, wx.VERTICAL)
-		self._createFilterControls()
-		tabPageHelper.addItem(self.filterCtrlHelper.sizer, flag=wx.EXPAND)
+		filterCtrlHelper = guiHelper.BoxSizerHelper(self, wx.VERTICAL)
+		self._createFilterControls(filterCtrlHelper)
+		tabPageHelper.addItem(filterCtrlHelper.sizer, flag=wx.EXPAND)
 
 		tabPageHelper.sizer.AddSpacer(5)
 
@@ -141,16 +144,16 @@ class AddonStoreDialog(SettingsDialog):
 		self.banner.SetGradient(normalBgColour, normalBgColour)
 		self.settingsSizer.Add(self.banner, flag=wx.CENTER)
 
-	def _createFilterControls(self):
+	def _createFilterControls(self, filterCtrlHelper: guiHelper.BoxSizerHelper) -> None:
 		filterCtrlsLine0 = guiHelper.BoxSizerHelper(self, wx.HORIZONTAL)
 		filterCtrlsLine1 = guiHelper.BoxSizerHelper(self, wx.HORIZONTAL)
-		self.filterCtrlHelper.addItem(filterCtrlsLine0.sizer)
+		filterCtrlHelper.addItem(filterCtrlsLine0.sizer)
 
 		# Add margin left padding
 		FILTER_MARGIN_PADDING = 15
 		filterCtrlsLine0.sizer.AddSpacer(FILTER_MARGIN_PADDING)
 		filterCtrlsLine1.sizer.AddSpacer(FILTER_MARGIN_PADDING)
-		self.filterCtrlHelper.addItem(filterCtrlsLine1.sizer, flag=wx.EXPAND, proportion=1)
+		filterCtrlHelper.addItem(filterCtrlsLine1.sizer, flag=wx.EXPAND, proportion=1)
 
 		self.channelFilterCtrl = cast(wx.Choice, filterCtrlsLine0.addLabeledControl(
 			# Translators: The label of a selection field to filter the list of add-ons in the add-on store dialog.
@@ -319,7 +322,13 @@ class AddonStoreDialog(SettingsDialog):
 			_StatusFilterKey.AVAILABLE,
 			_StatusFilterKey.UPDATE,
 		}:
-			self._storeVM._filterChannelKey = Channel.STABLE
+			if self._storeVM._filteredStatusKey == _StatusFilterKey.UPDATE and (
+				self._storeVM._installedAddons[Channel.DEV]
+				or self._storeVM._installedAddons[Channel.BETA]
+			):
+				self._storeVM._filterChannelKey = Channel.ALL
+			else:
+				self._storeVM._filterChannelKey = Channel.STABLE
 			self.enabledFilterCtrl.Hide()
 			self.enabledFilterCtrl.Disable()
 			self.includeIncompatibleCtrl.Enable()
@@ -348,6 +357,10 @@ class AddonStoreDialog(SettingsDialog):
 		self._setListLabels()
 		self._storeVM.refresh()
 		self.Layout()
+
+		# avoid erratic focus on the contained panel
+		if not self.addonListTabs.HasFocus():
+			self.addonListTabs.SetFocus()
 
 	def onChannelFilterChange(self, evt: wx.EVT_CHOICE):
 		self._storeVM._filterChannelKey = self._channelFilterKey
