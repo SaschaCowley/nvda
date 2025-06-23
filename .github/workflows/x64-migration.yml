@@ -15,7 +15,7 @@ jobs:
           ref: x64-dev
       - name: Merge in master
         run: |
-          git fetch origin/master
+          git fetch origin
           git merge origin/master --no-edit
           git push
           |
