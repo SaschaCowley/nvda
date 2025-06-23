@@ -13,6 +13,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: x64-dev
+          # Fetch all history, so Git recognises the branches as related
+          fetch-depth: 0
       - name: Merge in master
         run: |
           git fetch origin
