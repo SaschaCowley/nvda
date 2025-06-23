@@ -15,6 +15,11 @@ jobs:
           ref: x64-dev
           # Fetch all history, so Git recognises the branches as related
           fetch-depth: 0
+      - name: Setup Git
+        run: |
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+          |
       - name: Merge in master
         run: |
           git fetch origin
