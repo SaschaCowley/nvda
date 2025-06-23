@@ -1,0 +1,23 @@
+name: 64-bit Migration
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  sync64:
+    name: Synchronize 64-bit development with alpha development
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: x64-dev
+      - name: Merge in master
+        run: |
+          git fetch origin/master
+          git merge origin/master --no-edit
+          git push
+          |
+
+
