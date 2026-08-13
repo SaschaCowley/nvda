@@ -67,6 +67,8 @@ Previously these keys had no function when pressed on their own. (#20366, @fla-r
 * Remote Access: NVDA now reports when connecting as the controlled computer fails, while continuing to retry the connection in the background. (#19103, @danielw97)
 * NVDA no longer briefly disconnects and re-detects the braille display on desktop switches that do not enter the secure desktop, such as when switching between a Remote Desktop session and the local machine. (#18810, #20550, @LeonarddeR)
 * In Windows Terminal, mouse tracking now reports the line of text under the mouse pointer. (#20448, @DataTriny)
+* Moving the mouse to the current navigator object now lands within the object rather than on its top left corner, so that hovering and clicking work as expected.
+This particularly affects elements on web pages which are labelled with hidden text, such as an `aria-label`. (#20600, @SaschaCowley)
 
 ### Changes for Developers
 
@@ -76,6 +78,7 @@ Please refer to [the developer guide](https://download.nvaccess.org/documentatio
 Math presentation providers can override `MathPresentationProvider.interactWithMathMlFromSource` to use the source object when starting interaction.
 The default implementation forwards to `interactWithMathMl`, preserving compatibility with existing providers. (#20372, @RyanMcCleary)
 * Vision enhancement providers can register with `vision.handler.extensionPoints.post_mathNavigation` to receive the screen rectangle of the current math navigation position, or `None` when no rectangle is available. (#20372, @RyanMcCleary)
+* Added `mouseHandler.getMouseTargetPoint`, which calculates the screen point the mouse should be moved to in order to interact with an object, optionally refined by a review position. (#20600, @SaschaCowley)
 * The local Git hook runner has been switched from [pre-commit](https://pre-commit.com/) to [prek](https://prek.j178.dev/), a faster, drop-in compatible alternative. (#20305, @LeonarddeR)
   * The [pre-commit.ci](https://pre-commit.ci/) integration will be dropped entirely;.
   Linting and autofixing now run via GitHub Actions, using an autofix-or-fail workflow plus an automatic `prek auto-update` workflow.

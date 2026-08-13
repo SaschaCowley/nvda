@@ -5,15 +5,18 @@
 
 from dataclasses import dataclass
 import time
+from typing import TYPE_CHECKING
 import wx
 import gui
 import tones
 import winUser
 import queueHandler
 import api
+import locationHelper
 import screenBitmap
 import speech
 import eventHandler
+import textInfos
 from logHandler import log
 import config
 import winInputHook
@@ -24,6 +27,9 @@ from contextlib import contextmanager
 import threading
 from winAPI.winUser.constants import SystemMetrics
 from winBindings import user32
+
+if TYPE_CHECKING:
+	from NVDAObjects import NVDAObject
 
 
 WM_MOUSEMOVE = 0x0200
@@ -245,6 +251,75 @@ def executeMouseMoveEvent(x, y):
 		oldMouseObject = mouseObject
 	except:  # noqa: E722
 		log.error("api.notifyMouseMoved", exc_info=True)
+
+
+def _getStartCharacterRect(info: textInfos.TextInfo) -> locationHelper.RectLTWH:
+	"""Fetch the screen rectangle of the character at the start of the given range.
+
+	Unlike L{textInfos.TextInfo.pointAtStart}, this goes via L{textInfos.TextInfo.boundingRects},
+	which clips the rectangle to the visible part of the containing object.
+
+	@param info: The range to fetch the rectangle for. It is never modified.
+	@raise NotImplementedError: If bounding rectangles are not supported for this range.
+	@raise LookupError: If no bounding rectangle is available, i.e. the text is off screen or hidden.
+	"""
+	if info.isCollapsed:
+		# Expand a copy, so that the caller's TextInfo is left untouched.
+		info = info.copy()
+		info.expand(textInfos.UNIT_CHARACTER)
+	try:
+		objAtStart = info.NVDAObjectAtStart
+	except (NotImplementedError, LookupError):
+		objAtStart = None
+	if objAtStart is not None and objAtStart.hasIrrelevantLocation:
+		raise LookupError("Text at the start of the range is invisible or off screen")
+	rects = info.boundingRects
+	if not rects:
+		raise LookupError("No bounding rectangles for the range")
+	return rects[0]
+
+
+def getMouseTargetPoint(
+	obj: "NVDAObject",
+	reviewPosition: textInfos.TextInfo | None = None,
+) -> locationHelper.Point:
+	"""Calculate the screen point the mouse should be moved to in order to interact with an object.
+
+	The centre of the character at the start of C{reviewPosition} is preferred, so that the mouse
+	lands on the reviewed position within the object.
+	However, that point is only used when the character's rectangle overlaps the object's location.
+	Text which is only exposed to screen readers, such as an aria-label, may have no rectangle of its
+	own, or one which lies outside the element it labels.
+	In that case, and whenever no rectangle is available, the centre of the object is used instead.
+
+	@param obj: The object the mouse is being moved to.
+	@param reviewPosition: A review position to refine the point with, or C{None} to use the centre of
+		the object. Callers which are available on the lock screen must pass C{None} for a review
+		position which is below the lock screen.
+	@raise LookupError: If the object has no location.
+	"""
+	try:
+		objRect = obj.location
+	except Exception:
+		log.debugWarning(f"Error fetching location of {obj}", exc_info=True)
+		raise LookupError("Error fetching the location of the object")
+	if not objRect or not any(objRect):
+		raise LookupError("The object has no location")
+	objRect = objRect.toLTRB()
+	if reviewPosition is not None:
+		try:
+			charRect = _getStartCharacterRect(reviewPosition).toLTRB()
+		except (NotImplementedError, LookupError):
+			charRect = None
+		if charRect is not None:
+			intersection = charRect.intersection(objRect)
+			# An intersection with zeroed coordinates means the rectangles don't overlap,
+			# i.e. the reviewed text isn't drawn within the object the mouse is moving to.
+			if any(intersection):
+				point = intersection.center
+				if point in objRect:
+					return point
+	return objRect.center
 
 
 # Register internal mouse event

@@ -11,10 +11,12 @@ from unittest.mock import patch
 import config
 import globalCommands
 import inputCore
+import locationHelper
 import speech
 from speech.commands import EndUtteranceCommand
 import textInfos
 
+from .objectProvider import PlaceholderNVDAObject
 from .textProvider import BasicTextProvider
 
 
@@ -141,6 +143,117 @@ class ReviewCopyMarker(unittest.TestCase):
 
 		setReviewPosition.assert_not_called()
 		reviewMessage.assert_called_with("No start marker set")
+
+
+class MoveMouseToNavigatorObject(unittest.TestCase):
+	"""Tests the control flow of the command which routes the mouse to the navigator object.
+
+	The point calculation itself is covered by L{tests.unit.test_mouseHandler}.
+	"""
+
+	TARGET_POINT = locationHelper.Point(160, 130)
+
+	def setUp(self) -> None:
+		self.gesture = _FakeInputGesture()
+		self.navigatorObject = PlaceholderNVDAObject()
+		self.reviewObject = BasicTextProvider(text="hello world")
+		self.reviewPosition = self.reviewObject.makeTextInfo(textInfos.POSITION_CARET)
+
+	def _patchCommon(self, belowLockScreen: tuple[object, ...] = ()):
+		"""Patch everything the script touches, treating the given objects as below the lock screen."""
+		return (
+			patch.object(globalCommands.api, "getNavigatorObject", return_value=self.navigatorObject),
+			patch.object(globalCommands.api, "getReviewPosition", return_value=self.reviewPosition),
+			patch.object(
+				globalCommands,
+				"objectBelowLockScreenAndWindowsIsLocked",
+				side_effect=lambda obj: any(obj is o for o in belowLockScreen),
+			),
+			patch.object(globalCommands.winUser, "setCursorPos"),
+			patch.object(globalCommands.mouseHandler, "executeMouseMoveEvent"),
+			patch.object(globalCommands.ui, "message"),
+		)
+
+	def test_mouseIsMovedToCalculatedPoint(self):
+		getNav, getReview, belowLock, setCursorPos, moveEvent, message = self._patchCommon()
+		with (
+			getNav,
+			getReview,
+			belowLock,
+			setCursorPos as setCursorPos,
+			moveEvent as moveEvent,
+			message,
+			patch.object(
+				globalCommands.mouseHandler,
+				"getMouseTargetPoint",
+				return_value=self.TARGET_POINT,
+			) as getPoint,
+		):
+			globalCommands.commands.script_moveMouseToNavigatorObject(self.gesture)
+
+		getPoint.assert_called_once_with(self.navigatorObject, self.reviewPosition)
+		setCursorPos.assert_called_once_with(160, 130)
+		moveEvent.assert_called_once_with(160, 130)
+
+	def test_objectWithoutLocationIsReported(self):
+		getNav, getReview, belowLock, setCursorPos, moveEvent, message = self._patchCommon()
+		with (
+			getNav,
+			getReview,
+			belowLock,
+			setCursorPos as setCursorPos,
+			moveEvent,
+			message as message,
+			patch.object(globalCommands.mouseHandler, "getMouseTargetPoint", side_effect=LookupError),
+		):
+			globalCommands.commands.script_moveMouseToNavigatorObject(self.gesture)
+
+		message.assert_called_once_with("Object has no location")
+		setCursorPos.assert_not_called()
+
+	def test_navigatorObjectBelowLockScreenIsNotRoutedTo(self):
+		getNav, getReview, belowLock, setCursorPos, moveEvent, message = self._patchCommon(
+			belowLockScreen=(self.navigatorObject,),
+		)
+		with (
+			getNav,
+			getReview,
+			belowLock,
+			setCursorPos as setCursorPos,
+			moveEvent,
+			message as message,
+			patch.object(globalCommands.mouseHandler, "getMouseTargetPoint") as getPoint,
+		):
+			globalCommands.commands.script_moveMouseToNavigatorObject(self.gesture)
+
+		message.assert_called_once_with(
+			globalCommands.gui.blockAction.Context.WINDOWS_LOCKED.translatedMessage,
+		)
+		getPoint.assert_not_called()
+		setCursorPos.assert_not_called()
+
+	def test_reviewPositionBelowLockScreenIsNotUsed(self):
+		"""The mouse still moves to the navigator object, but the review position is discarded."""
+		getNav, getReview, belowLock, setCursorPos, moveEvent, message = self._patchCommon(
+			belowLockScreen=(self.reviewObject,),
+		)
+		with (
+			getNav,
+			getReview,
+			belowLock,
+			setCursorPos as setCursorPos,
+			moveEvent,
+			message,
+			patch.object(
+				globalCommands.mouseHandler,
+				"getMouseTargetPoint",
+				return_value=self.TARGET_POINT,
+			) as getPoint,
+		):
+			globalCommands.commands.script_moveMouseToNavigatorObject(self.gesture)
+
+		getPoint.assert_called_once_with(self.navigatorObject, None)
+		setCursorPos.assert_called_once_with(160, 130)
 
 
 class SpeechModeSwitching(unittest.TestCase):

@@ -1378,43 +1378,29 @@ class GlobalCommands(ScriptableObject):
 		gestures=("kb:NVDA+numpadDivide", "kb(laptop):NVDA+shift+m"),
 	)
 	def script_moveMouseToNavigatorObject(self, gesture: inputCore.InputGesture):
+		navigatorObject = api.getNavigatorObject()
+		# This script is available on the lock screen via getSafeScripts, as such
+		# ensure the navigatorObject does not contain secure information
+		# before navigating to this object
+		if objectBelowLockScreenAndWindowsIsLocked(navigatorObject):
+			ui.message(gui.blockAction.Context.WINDOWS_LOCKED.translatedMessage)
+			return
+
 		reviewPosition = api.getReviewPosition()
+		# Likewise, only refine the point with the review position
+		# if it does not contain secure information.
+		if objectBelowLockScreenAndWindowsIsLocked(reviewPosition.obj):
+			reviewPosition = None
+
 		try:
-			reviewPositionStartPoint = reviewPosition.pointAtStart
-		except (NotImplementedError, LookupError):
-			reviewPositionStartPoint = None
+			point = mouseHandler.getMouseTargetPoint(navigatorObject, reviewPosition)
+		except LookupError:
+			# Translators: Reported when the object has no location for the mouse to move to it.
+			ui.message(_("Object has no location"))
+			return
 
-		if (
-			reviewPositionStartPoint
-			# This script is available on the lock screen via getSafeScripts, as such
-			# ensure the review position does not contain secure information
-			# before navigating to this object
-			and not objectBelowLockScreenAndWindowsIsLocked(reviewPosition.obj)
-		):
-			x = reviewPositionStartPoint.x
-			y = reviewPositionStartPoint.y
-
-		else:
-			navigatorObject = api.getNavigatorObject()
-			# This script is available on the lock screen via getSafeScripts, as such
-			# ensure the navigatorObject does not contain secure information
-			# before navigating to this object
-			if objectBelowLockScreenAndWindowsIsLocked(navigatorObject):
-				ui.message(gui.blockAction.Context.WINDOWS_LOCKED.translatedMessage)
-				return
-
-			try:
-				(left, top, width, height) = navigatorObject.location
-			except:  # noqa: E722
-				# Translators: Reported when the object has no location for the mouse to move to it.
-				ui.message(_("Object has no location"))
-				return
-
-			x = left + (width // 2)
-			y = top + (height // 2)
-
-		winUser.setCursorPos(x, y)
-		mouseHandler.executeMouseMoveEvent(x, y)
+		winUser.setCursorPos(point.x, point.y)
+		mouseHandler.executeMouseMoveEvent(point.x, point.y)
 
 	@script(
 		description=_(
@@ -4756,29 +4742,15 @@ class GlobalCommands(ScriptableObject):
 	def script_touch_rightClick(self, gesture):
 		obj = api.getNavigatorObject()
 		# Ignore invisible or offscreen objects as they cannot even be navigated with touch gestures.
-		if controlTypes.State.INVISIBLE in obj.states or controlTypes.State.OFFSCREEN in obj.states:
+		if obj.hasIrrelevantLocation:
 			return
 		try:
-			p = api.getReviewPosition().pointAtStart
-		except (NotImplementedError, LookupError):
-			p = None
-		if p:
-			x = p.x
-			y = p.y
-		else:
-			try:
-				(left, top, width, height) = obj.location
-			# Flake8/E722: stems from object location script.
-			except:  # noqa
-				# Translators: Reported when the object has no location for the mouse to move to it.
-				ui.message(_("object has no location"))
-				return
-			# Don't bother clicking when parts or the entire object is offscreen.
-			if min(left, top, width, height) < 0:
-				return
-			x = left + (width // 2)
-			y = top + (height // 2)
-		winUser.setCursorPos(x, y)
+			point = mouseHandler.getMouseTargetPoint(obj, api.getReviewPosition())
+		except LookupError:
+			# Translators: Reported when the object has no location for the mouse to move to it.
+			ui.message(_("object has no location"))
+			return
+		winUser.setCursorPos(point.x, point.y)
 		self.script_rightMouseClick(gesture)
 
 	@script(
